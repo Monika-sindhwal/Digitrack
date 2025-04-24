@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard - Digital Planner</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      height: 100vh;
+      background: linear-gradient(to right, #f5f2f2, #6c3a3a20);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .dashboard {
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px 30px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      text-align: center;
+      transition: 0.3s ease;
+    }
+
+    .dashboard h2 {
+      font-size: 28px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .dashboard p {
+      color: #666;
+      margin-bottom: 25px;
+    }
+
+    .feature-btn {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 15px;
+      width: 100%;
+      padding: 14px 20px;
+      margin: 10px 0;
+      background-color: #6c3a3a;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 16px;
+      transition: 0.3s ease;
+    }
+
+    .feature-btn:hover {
+      background-color: #542e2e;
+      transform: translateY(-2px);
+    }
+
+    .logout-btn {
+      background-color: #af2626;
+    }
+
+    .logout-btn:hover {
+      background-color: #8c1e1e;
+    }
+
+    .icon-img {
+      width: 32px;
+      height: 32px;
+      background-color: #fff;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .icon-img img {
+      width: 24px;
+      height: 24px;
+    }
+
+    @media (max-width: 500px) {
+      .dashboard {
+        padding: 30px 20px;
+      }
+
+      .dashboard h2 {
+        font-size: 24px;
+      }
+
+      .feature-btn {
+        font-size: 14px;
+        padding: 12px 15px;
+      }
+
+      .icon-img {
+        width: 28px;
+        height: 28px;
+      }
+
+      .icon-img img {
+        width: 20px;
+        height: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <h2>Welcome, <span id="user-name">User</span> 👋</h2>
+    <p>What would you like to do today?</p>
+
+    <a href="todo.html" class="feature-btn">
+      <div class="icon-img">
+        <img src="todo.png" alt="To-Do Icon" />
+      </div> To-Do List
+    </a>
+
+    <a href="journal.html" class="feature-btn">
+      <div class="icon-img">
+        <img src="jornal.png" alt="Journal Icon" />
+      </div> Journal
+    </a>
+
+    <a href="monthly.html" class="feature-btn">
+      <div class="icon-img">
+        <img src="monthly track.png" alt="Monthly Tracker Icon" />
+      </div> Monthly Tracker
+    </a>
+
+    <a href="finance.html" class="feature-btn">
+      <div class="icon-img">
+        <img src="financial.png" alt="Finance Icon" />
+      </div> Financial Tracker
+    </a>
+
+    <button id="logout" class="feature-btn logout-btn">
+      <div class="icon-img">
+        <img src="signout.png" alt="Logout Icon" />
+      </div> Sign Out
+    </button>
+  </div>
+
+  <!-- Firebase Auth Script -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA11LEa3fLOnGAtSye45wE6D7J0GARYYPI",
+      authDomain: "digitrack-c64e3.firebaseapp.com",
+      projectId: "digitrack-c64e3",
+      storageBucket: "digitrack-c64e3.appspot.com",
+      messagingSenderId: "605797809760",
+      appId: "1:605797809760:web:7025880a131b2043e2cd05"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        if (!user.emailVerified) {
+          alert("Please verify your email before accessing the dashboard.");
+          signOut(auth);
+          window.location.href = "signin.html";
+        } else {
+          document.getElementById("user-name").textContent = user.displayName || user.email;
+        }
+      } else {
+        window.location.href = "signin.html";
+      }
+    });
+
+    document.getElementById("logout").addEventListener("click", () => {
+      signOut(auth)
+        .then(() => {
+          alert("You have been signed out.");
+          window.location.href = "signin.html";
+        })
+        .catch((error) => {
+          alert("Error signing out: " + error.message);
+        });
+    });
+  </script>
+</body>
+</html>

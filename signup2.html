@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign Up - Digital Planner</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .back-btn {
+      width: 100%;
+    }
+    .panda-img {
+      position: absolute;
+      left: 3%;
+      top: 10%;
+      padding-top: 10%;
+      transform: translateY(-50%);
+      width: 40%;
+      height: 50%;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo">
+      <img src="logo.jpeg" alt="Logo" />
+    </div>
+    <div>
+      <a href="index.html">Back to Home</a>
+    </div>
+  </div>
+
+  <div class="form-container">
+    <div class="form-text">
+      <img src="pandas.jpg" alt="bear" class="panda-img" />
+      <h1>Create an Account</h1>
+      <p>Sign up to start planning and organizing your schedule efficiently.</p>
+    </div>
+
+    <div class="form">
+      <form id="signup-form">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" placeholder="Enter your full name" required />
+
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="Enter your email" required />
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="Create a password" required />
+
+        <button type="submit" class="btn">Sign Up</button>
+        <div class="btn-container">
+          <a href="signin.html" class="back-btn">Already have an account? Sign In</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { 
+    getAuth, 
+    createUserWithEmailAndPassword, 
+    updateProfile, 
+    sendEmailVerification 
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyA11LEa3fLOnGAtSye45wE6D7J0GARYYPI",
+    authDomain: "digitrack-c64e3.firebaseapp.com",
+    projectId: "digitrack-c64e3",
+    storageBucket: "digitrack-c64e3.appspot.com",
+    messagingSenderId: "605797809760",
+    appId: "1:605797809760:web:7025880a131b2043e2cd05"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  const form = document.getElementById("signup-form");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById("name").value;
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      await updateProfile(user, { displayName: name });
+
+      // Send verification email
+      await sendEmailVerification(user);
+      
+      alert("Verification email sent! Please check your inbox before logging in.");
+      form.reset(); // Reset form after successful signup
+
+    } catch (error) {
+      alert("Error: " + error.message);
+    }
+  });
+</script>
+
+</body>
+</html>

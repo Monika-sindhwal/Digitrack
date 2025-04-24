@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In - Digital Planner</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    #resend-container {
+      display: none;
+      margin-top: 10px;
+      color: #ff5e5e;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    #resend-btn {
+      background-color: #444;
+      color: #fff;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    #resend-btn:hover {
+      background-color: #666;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo">
+      <img src="logo.jpeg" alt="Logo" />
+    </div>
+    <div>
+      <a href="index.html">Back to Home</a>
+    </div>
+  </div>
+
+  <div class="form-container">
+    <div class="form-text">
+      <h1>Welcome Back!</h1>
+      <p>Sign in to access your Digital Planner and stay on top of your schedule.</p> 
+      <img src="bear-removebg-preview.png" alt="bear" class="bear-img" />
+    </div>
+
+    <div class="form">
+      <form id="signin-form">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="Enter your email" required />
+
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter your password" required />
+
+        <button type="submit" class="btn">Sign In</button>
+
+        <div id="resend-container">
+          Your email is not verified.<br>
+          <button id="resend-btn">Resend Verification Email</button>
+        </div>
+
+        <div class="btn-container">
+          <a href="index.html" class="back-btn">Back to Home</a>
+          <a href="signup.html" class="signup-btn">Sign Up</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import {
+    getAuth,
+    signInWithEmailAndPassword,
+    sendEmailVerification
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyA11LEa3fLOnGAtSye45wE6D7J0GARYYPI",
+    authDomain: "digitrack-c64e3.firebaseapp.com",
+    projectId: "digitrack-c64e3",
+    storageBucket: "digitrack-c64e3.appspot.com",
+    messagingSenderId: "605797809760",
+    appId: "1:605797809760:web:7025880a131b2043e2cd05"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  const form = document.getElementById("signin-form");
+  const resendContainer = document.getElementById("resend-container");
+  const resendBtn = document.getElementById("resend-btn");
+
+  let currentUser = null;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      currentUser = user;
+
+      if (!user.emailVerified) {
+        resendContainer.style.display = "block";
+        alert("Your email is not verified. Please verify to continue.");
+      } else {
+        alert("Login successful! Redirecting to dashboard...");
+        window.location.href = "dashboard.html";
+      }
+    } catch (error) {
+      alert("Login failed: " + error.message);
+    }
+  });
+
+  resendBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (currentUser) {
+      try {
+        await sendEmailVerification(currentUser);
+        alert("Verification email sent again. Please check your inbox.");
+      } catch (err) {
+        alert("Failed to resend email: " + err.message);
+      }
+    }
+  });
+</script>
+
+</body>
+</html>

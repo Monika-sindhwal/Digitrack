@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Logging Out...</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    // ✅ Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyA11LEa3fLOnGAtSye45wE6D7J0GARYYPI",
+      authDomain: "digitrack-c64e3.firebaseapp.com",
+      projectId: "digitrack-c64e3",
+      storageBucket: "digitrack-c64e3.appspot.com",
+      messagingSenderId: "605797809760",
+      appId: "1:605797809760:web:7025880a131b2043e2cd05"
+    };
+
+    // ✅ Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // ✅ Sign the user out and redirect to home page
+    signOut(auth)
+      .then(() => {
+        alert("You have been logged out.");
+        window.location.href = "index.html"; // 👈 Redirect to home page
+      })
+      .catch((error) => {
+        console.error("Logout failed:", error);
+        alert("Error logging out.");
+      });
+  </script>
+</head>
+<body>
+  <p>Logging you out and redirecting to home page...</p>
+</body>
+</html>

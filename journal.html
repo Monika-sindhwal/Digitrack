@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DigiTrack Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f8f9fc;
+      min-height: 100vh;
+      padding: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .container {
+      display: flex;
+      background: white;
+      max-width: 1100px;
+      width: 100%;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    .left {
+      background: #f3e8e8;
+      width: 50%;
+      
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 30px;
+    }
+
+    .left img {
+      width: 100%;
+      height: auto;
+      max-height: 400px;
+      object-fit: cover;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    
+    }
+
+    .left img:hover {
+      transform: scale(1.02);
+    }
+
+    .right {
+      width: 55%;
+      padding: 40px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #6c3a3a;
+    }
+
+    form label {
+      margin-top: 1rem;
+      display: block;
+      font-weight: 600;
+      color: #333;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: #6c3a3a;
+      outline: none;
+    }
+
+    button {
+      background-color: #6c3a3a;
+      color: white;
+      font-weight: 600;
+      border: none;
+      margin-top: 1.5rem;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #5a2e2e;
+    }
+
+    .entry {
+      background: #eef2ff;
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 10px;
+    }
+
+    .entry strong {
+      color: #4338ca;
+    }
+
+    .empty-state {
+      text-align: center;
+      margin-top: 30px;
+      color: #777;
+    }
+
+    .empty-state img {
+      max-width: 150px;
+      opacity: 0.9;
+      margin-bottom: 15px;
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        flex-direction: column;
+      }
+
+      .left, .right {
+        width: 100%;
+        padding: 20px;
+      }
+
+      .left img {
+        max-height: 250px;
+      }
+    }
+    .logout-button {
+  padding: 10px 20px;
+  background: linear-gradient(to right, #e74c3c, #c0392b);
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.logout-button:hover {
+  background: linear-gradient(to right, #c0392b, #a93226);
+  transform: scale(1.03);
+}
+
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="left">
+    <!-- Replace src with your own white-background image -->
+    <img src="i2.png" alt="Journal Illustration">
+  </div>
+
+  <div class="right">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2>📝 Daily Journal</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      
+        <button id="logoutBtn" class="logout-button">Logout</button>
+      </div>
+      
+    </div>
+    
+    <form id="journalForm">
+      <label for="date">Date:</label>
+      <input type="date" id="date" required>
+
+      <label for="mood">Mood:</label>
+      <select id="mood">
+        <option value="😊 Happy">😊 Happy</option>
+        <option value="😐 Neutral">😐 Neutral</option>
+        <option value="😞 Sad">😞 Sad</option>
+        <option value="😤 Stressed">😤 Stressed</option>
+      </select>
+
+      <label for="entry">Your Thoughts:</label>
+      <textarea id="entry" rows="5" required></textarea>
+
+      <button type="submit">Save Entry</button>
+    </form>
+
+    <div id="entriesDisplay"></div>
+
+    <div id="emptyState" class="empty-state" style="display: none;" >
+      <img src="images.jpg" alt="Empty Journal">
+      <p>No journal entries yet. Start writing your day!</p>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+  import {
+    getFirestore,
+    collection,
+    doc,
+    setDoc,
+    getDoc,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+  import {
+    getAuth,
+    onAuthStateChanged,
+    signOut
+  } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyA11LEa3fLOnGAtSye45wE6D7J0GARYYPI",
+    authDomain: "digitrack-c64e3.firebaseapp.com",
+    projectId: "digitrack-c64e3",
+    storageBucket: "digitrack-c64e3.appspot.com",
+    messagingSenderId: "605797809760",
+    appId: "1:605797809760:web:7025880a131b2043e2cd05"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  const journalForm = document.getElementById('journalForm');
+  const entriesDisplay = document.getElementById('entriesDisplay');
+  const emptyState = document.getElementById('emptyState');
+  const dateInput = document.getElementById('date');
+
+  let currentUserUID = null;
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUserUID = user.uid;
+    } else {
+      alert("Please log in to access your journal.");
+      window.location.href = "signin.html";
+    }
+  });
+
+  // Load journal entry by date
+  async function loadEntryByDate(selectedDate) {
+    entriesDisplay.innerHTML = '';
+    emptyState.style.display = 'none';
+
+    if (!currentUserUID || !selectedDate) return;
+
+    const docRef = doc(db, "users", currentUserUID, "journalEntries", selectedDate);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      const entryHTML = `
+        <div class="entry">
+          <strong>${data.date}</strong> — <em>${data.mood}</em>
+          <p>${data.entry}</p>
+        </div>
+      `;
+      entriesDisplay.innerHTML = entryHTML;
+    } else {
+      emptyState.style.display = "block";
+    }
+  }
+
+  // On form submit, save entry and load it
+  journalForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const selectedDate = dateInput.value;
+    const mood = document.getElementById('mood').value;
+    const entry = document.getElementById('entry').value;
+
+    if (!currentUserUID) return;
+
+    try {
+      const journalDocRef = doc(db, "users", currentUserUID, "journalEntries", selectedDate);
+      await setDoc(journalDocRef, {
+        date: selectedDate,
+        mood,
+        entry,
+        createdAt: serverTimestamp()
+      });
+
+      journalForm.reset();
+      loadEntryByDate(selectedDate);
+    } catch (error) {
+      console.error("Error saving entry:", error);
+    }
+  });
+
+  // Load entry when user selects a date
+  dateInput.addEventListener('change', (e) => {
+    const selectedDate = e.target.value;
+    if (selectedDate) {
+      loadEntryByDate(selectedDate);
+    }
+  });
+
+  // Logout button
+  const logoutBtn = document.getElementById('logoutBtn');
+  logoutBtn.addEventListener('click', async () => {
+    try {
+      await signOut(auth);
+      window.location.href = "signin.html";
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  });
+</script>
+
+
+</body>
+</html>

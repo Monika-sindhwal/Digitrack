@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Monthly Task Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0f4f8;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    .flex {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    input[type="number"], input[type="text"] {
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      padding: 8px 14px;
+      border: none;
+      background-color: #6c3a3a;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #f7f7f7;
+    }
+
+    .chart-card {
+      width: 300px;
+      padding: 10px;
+      margin-top: 30px;
+      background: #fafafa;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    #chartsContainer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Monthly Task Tracker</h2>
+
+    <div class="flex">
+      <label>Days to Track:
+        <input type="number" id="numDays" min="1" max="31">
+      </label>
+      <button onclick="addTaskInput()">+ Add Task</button>
+      <button onclick="startTracking()">Start Tracking</button>
+    </div>
+
+    <div id="taskList" class="flex"></div>
+    <div id="trackerTable"></div>
+    <div id="chartsContainer"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore.js";
+    import {
+      getAuth,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA11LEa3fLOnGAtSye45wE6D7J0GARYYPI",
+      authDomain: "digitrack-c64e3.firebaseapp.com",
+      projectId: "digitrack-c64e3",
+      storageBucket: "digitrack-c64e3.appspot.com",
+      messagingSenderId: "605797809760",
+      appId: "1:605797809760:web:7025880a131b2043e2cd05"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let currentUserId = null;
+    let taskInputs = [];
+    let taskNames = [];
+    let completionData = [];
+    let dayCount = 0;
+    let chartRefs = [];
+    let trackingStarted = false;
+    const MAX_TASKS = 4;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUserId = user.uid;
+        await loadPreviousData();
+      } else {
+        alert("Please sign in to use the tracker.");
+      }
+    });
+
+    window.addTaskInput = function () {
+      if (trackingStarted) {
+        alert("You can't add tasks after tracking has started.");
+        return;
+      }
+
+      if (taskInputs.length >= MAX_TASKS) {
+        alert("Maximum 4 tasks allowed.");
+        return;
+      }
+
+      const index = taskInputs.length;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = `Task ${index + 1}`;
+      input.id = `task-${index}`;
+      document.getElementById("taskList").appendChild(input);
+      taskInputs.push(input);
+    }
+
+    window.startTracking = async function () {
+      if (trackingStarted) return;
+
+      const days = parseInt(document.getElementById("numDays").value);
+      if (!days || days < 1 || days > 31) {
+        alert("Please enter valid number of days.");
+        return;
+      }
+      dayCount = days;
+
+      taskNames = [];
+      completionData = [];
+
+      for (let i = 0; i < taskInputs.length; i++) {
+        const value = taskInputs[i].value.trim();
+        if (!value) {
+          alert("Please fill all task names.");
+          return;
+        }
+        taskNames.push(value);
+        completionData.push(0);
+        taskInputs[i].disabled = true;
+      }
+
+      document.getElementById("numDays").disabled = true;
+      trackingStarted = true;
+
+      createTable();
+      createCharts();
+      await saveToFirestore();
+    }
+
+    window.handleCheck = function (checkbox) {
+      const task = parseInt(checkbox.dataset.task);
+      const day = parseInt(checkbox.dataset.day);
+
+      if (checkbox.checked) {
+        completionData[task]++;
+      } else {
+        completionData[task]--;
+      }
+
+      updateCharts();
+      saveToFirestore();
+    }
+
+    function createTable(fromFirebase = false) {
+      let html = `<table><thead><tr><th>Day</th>`;
+      taskNames.forEach(name => html += `<th>${name}</th>`);
+      html += `</tr></thead><tbody>`;
+
+      for (let day = 1; day <= dayCount; day++) {
+        html += `<tr><td>${day}</td>`;
+        for (let t = 0; t < taskNames.length; t++) {
+          const checked = fromFirebase && completionData[t] >= day ? "checked" : "";
+          html += `<td><input type="checkbox" data-task="${t}" data-day="${day}" ${checked} onchange="handleCheck(this)"/></td>`;
+        }
+        html += `</tr>`;
+      }
+
+      html += `</tbody></table>`;
+      document.getElementById("trackerTable").innerHTML = html;
+    }
+
+    function createCharts() {
+      document.getElementById("chartsContainer").innerHTML = "";
+      chartRefs = [];
+
+      taskNames.forEach((name, i) => {
+        const div = document.createElement("div");
+        div.className = "chart-card";
+        div.innerHTML = `<h4>${name}</h4><canvas id="chart-${i}"></canvas>`;
+        document.getElementById("chartsContainer").appendChild(div);
+
+        const ctx = document.getElementById(`chart-${i}`).getContext("2d");
+        const chart = new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: ["Completed", "Not Completed"],
+            datasets: [{
+              data: [completionData[i], dayCount - completionData[i]],
+              backgroundColor: ["#9e6f60", "#e0e0e0"]
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: "bottom"
+              }
+            }
+          }
+        });
+
+        chartRefs.push(chart);
+      });
+    }
+
+    function updateCharts() {
+      chartRefs.forEach((chart, i) => {
+        chart.data.datasets[0].data = [completionData[i], dayCount - completionData[i]];
+        chart.update();
+      });
+    }
+
+    async function saveToFirestore() {
+      if (!currentUserId) return;
+
+      const ref = doc(db, "users", currentUserId, "monthlyTracker", "currentMonth");
+      await setDoc(ref, {
+        tasks: taskNames,
+        dayCount,
+        completionData,
+        timestamp: new Date()
+      });
+    }
+
+    async function loadPreviousData() {
+      const ref = doc(db, "users", currentUserId, "monthlyTracker", "currentMonth");
+      const snapshot = await getDoc(ref);
+      if (!snapshot.exists()) return;
+
+      const data = snapshot.data();
+      taskNames = data.tasks;
+      dayCount = data.dayCount;
+      completionData = data.completionData;
+
+      document.getElementById("numDays").value = dayCount;
+      document.getElementById("numDays").disabled = true;
+
+      taskNames.forEach((name, i) => {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = name;
+        input.disabled = true;
+        input.id = `task-${i}`;
+        document.getElementById("taskList").appendChild(input);
+        taskInputs.push(input);
+      });
+
+      trackingStarted = true;
+      createTable(true);
+      createCharts();
+    }
+  </script>
+</body>
+</html>

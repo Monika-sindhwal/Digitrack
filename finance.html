@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DigiTrack - Financial Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* Your original CSS (unchanged) */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #fdf5f6;
+      color: #333;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 700px;
+      background: #fff;
+      margin: auto;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    .banner {
+      width: 100%;
+      max-height: 200px;
+      object-fit: contain;
+      border-radius: 15px;
+      margin-bottom: 25px;
+      background-color: #fcece8;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+      border: 2px solid #e6cccc;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #6c3a3a;
+    }
+    .summary {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 25px;
+    }
+    .summary div { text-align: center; }
+    .summary h4 {
+      margin-bottom: 5px;
+      color: #6c3a3a;
+    }
+    .summary p {
+      font-weight: 600;
+      font-size: 18px;
+      color: #222;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+    input, select, button {
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+      background: #fefefe;
+      color: #333;
+    }
+    button {
+      background-color: #6c3a3a;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background-color: #552d2d;
+    }
+    .transaction-list {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 20px;
+    }
+    .transaction-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 15px;
+      margin: 8px 0;
+      border-radius: 10px;
+      background: #f3e7e7;
+      color: #333;
+    }
+    .transaction-item.income { border-left: 5px solid #6c3a3a; }
+    .transaction-item.expense { border-left: 5px solid #6c3a3a; }
+    .chart-container { margin-bottom: 20px; }
+    .reset, .logout {
+      text-align: center;
+      margin-top: 15px;
+    }
+    .reset button { background-color: #f57c00; }
+    .reset button:hover { background-color: #e65100; }
+    .logout button { background-color: #af2626; }
+    .logout button:hover { background-color: #7e1b1b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="banner.png" alt="DigiTrack Banner" class="banner"/>
+    <h2>💰 DigiTrack - Financial Tracker</h2>
+
+    <div class="summary">
+      <div><h4>Income</h4><p id="income">₹0</p></div>
+      <div><h4>Expense</h4><p id="expense">₹0</p></div>
+      <div><h4>Savings</h4><p id="savings">₹0</p></div>
+    </div>
+
+    <form id="transaction-form">
+      <input type="text" id="description" placeholder="Description" required />
+      <input type="number" id="amount" placeholder="Amount (₹)" required />
+      <select id="type">
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+      </select>
+      <button type="submit">Add Transaction</button>
+    </form>
+
+    <ul class="transaction-list" id="transaction-list"></ul>
+
+    <div class="chart-container">
+      <canvas id="financeChart"></canvas>
+    </div>
+
+    <div class="reset">
+      <button id="reset">🔁 Reset for New Month</button>
+    </div>
+
+    <div class="logout">
+      <button id="logout">🚪 Sign Out</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import {
+      getFirestore, doc, setDoc, getDocs, addDoc, deleteDoc,
+      collection, orderBy, query
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA11LEa3fLOnGAtSye45wE6D7J0GARYYPI",
+      authDomain: "digitrack-c64e3.firebaseapp.com",
+      projectId: "digitrack-c64e3",
+      storageBucket: "digitrack-c64e3.appspot.com",
+      messagingSenderId: "605797809760",
+      appId: "1:605797809760:web:7025880a131b2043e2cd05"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const form = document.getElementById("transaction-form");
+    const list = document.getElementById("transaction-list");
+    const incomeEl = document.getElementById("income");
+    const expenseEl = document.getElementById("expense");
+    const savingsEl = document.getElementById("savings");
+    const resetBtn = document.getElementById("reset");
+    const chart = new Chart(document.getElementById("financeChart").getContext("2d"), {
+      type: 'bar',
+      data: {
+        labels: ['Income', 'Expense', 'Savings'],
+        datasets: [{
+          label: 'Amount (₹)',
+          data: [0, 0, 0],
+          backgroundColor: ['#6c3a3a', '#c44545', '#9e6f60'],
+          borderRadius: 10
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 100 } } }
+      }
+    });
+
+    function getTransactionCollectionRef(uid, dateStr) {
+      return collection(db, "users", uid, "finance", dateStr, "transactions");
+    }
+
+    function getDateKey() {
+      const today = new Date();
+      return today.toISOString().split('T')[0]; // "YYYY-MM-DD"
+    }
+
+    let currentUser;
+    let transactions = [];
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) return location.href = "signin.html";
+      currentUser = user;
+      await fetchTransactions();
+    });
+
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const desc = document.getElementById("description").value.trim();
+      const amount = parseFloat(document.getElementById("amount").value);
+      const type = document.getElementById("type").value;
+      if (!desc || isNaN(amount)) return;
+
+      const dateKey = getDateKey();
+      const tx = {
+        desc,
+        amount,
+        type,
+        timestamp: Date.now()
+      };
+      await addDoc(getTransactionCollectionRef(currentUser.uid, dateKey), tx);
+      await fetchTransactions();
+      form.reset();
+    });
+
+    async function fetchTransactions() {
+      const dateKey = getDateKey();
+      const q = query(getTransactionCollectionRef(currentUser.uid, dateKey), orderBy("timestamp", "desc"));
+      const snapshot = await getDocs(q);
+      transactions = snapshot.docs.map(doc => doc.data());
+      updateUI();
+    }
+
+    function updateUI() {
+      let income = 0, expense = 0;
+      list.innerHTML = "";
+      transactions.forEach(tx => {
+        const item = document.createElement("li");
+        item.className = `transaction-item ${tx.type}`;
+        item.innerHTML = `<span>${tx.desc}</span><span>₹${tx.amount}</span>`;
+        list.appendChild(item);
+
+        if (tx.type === "income") income += tx.amount;
+        else expense += tx.amount;
+      });
+
+      incomeEl.textContent = `₹${income}`;
+      expenseEl.textContent = `₹${expense}`;
+      savingsEl.textContent = `₹${income - expense}`;
+      chart.data.datasets[0].data = [income, expense, income - expense];
+      chart.update();
+    }
+
+    resetBtn.addEventListener("click", async () => {
+      if (!confirm("Reset all finance data for today?")) return;
+      const dateKey = getDateKey();
+      const snapshot = await getDocs(getTransactionCollectionRef(currentUser.uid, dateKey));
+      const deletions = snapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletions);
+      await fetchTransactions();
+    });
+
+    document.getElementById("logout").addEventListener("click", () => {
+      signOut(auth).then(() => location.href = "index.html");
+    });
+  </script>
+</body>
+</html>
